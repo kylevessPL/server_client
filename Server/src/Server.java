@@ -6,18 +6,6 @@ import java.net.Socket;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.DelayQueue;
 
-class MessageNotValidException extends Exception {
-    public MessageNotValidException() {
-        super("No message provided!");
-    }
-}
-
-class TimeNotValidException extends Exception {
-    public TimeNotValidException() {
-        super("Not a valid time format!");
-    }
-}
-
 public class Server {
     static final int PORT_NUMBER = 59090;
     public static void main(String[] args) {
@@ -42,19 +30,16 @@ public class Server {
                     // initialize new queue for upcoming messages
                     BlockingQueue<Message> queue = new DelayQueue<Message>();
 
-                    // monitor object
-                    Object monitor = new Object();
-
                     // obtaining input and output streams
                     DataInputStream dis = new DataInputStream(s.getInputStream());
                     DataOutputStream dos = new DataOutputStream(s.getOutputStream());
 
-                    Thread t = new ClientHandler(s, queue, monitor, dis, dos);
+                    Thread t = new ClientHandler(s, queue, dis, dos);
 
                     // Invoking the start() method
                     t.start();
 
-                    Consumer consumer = new Consumer(s, queue, monitor, dos);
+                    Consumer consumer = new Consumer(s, queue, dos);
 
                     //starting consumer to consume queue from queue
                     new Thread(consumer).start();

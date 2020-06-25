@@ -5,79 +5,112 @@ import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
+
+class MessageNotValidException extends Exception {
+    public MessageNotValidException() {
+        super("no message provided");
+    }
+}
+
+class TimeNotValidException extends Exception {
+    public TimeNotValidException() {
+        super("not a valid time format");
+    }
+}
 
 // Client class
 public class Client {
     static final int PORT_NUMBER = 59090;
+    static String currentMsg = null;
+
     public static void main(String[] args) throws IOException {
         try {
-
             // getting localhost ip
             InetAddress ip = InetAddress.getByName("localhost");
 
             // establish the connection with server on port 59090
             try (Socket s = new Socket(ip, PORT_NUMBER)) {
 
-                // obtaining input and output streams
-                try (DataInputStream dis = new DataInputStream(s.getInputStream())) {
+                new Thread(() -> {
+                    try (DataInputStream dis = new DataInputStream(s.getInputStream())) {
+                        while (true) {
+                            String message = dis.readUTF();
+
+                            System.out.println("Server sends a new notification: " + message);
+
+                            // repeat last message
+                            if(currentMsg != null) {
+                                System.out.println(currentMsg);
+                            }
+                        }
+                    } catch (IOException e) {
+                        System.out.println("An error occurred: " + e.getLocalizedMessage());
+                        System.out.println("Is there a server running yet?");
+
+                        //stop the thread
+                        Thread.currentThread().interrupt();
+                    }
+                }).start();
+
+                Scanner scn = new Scanner(System.in);
+
+                // obtaining output stream
+                try {
                     try (DataOutputStream dos = new DataOutputStream(s.getOutputStream())) {
-                        try (Scanner scn = new Scanner(System.in)) {
-
-                            // loop for data exchange
-                            while (true) {
+                        // loop for data exchange
+                        //noinspection InfiniteLoopStatement
+                        while (true) {
+                            scn = new Scanner(System.in);
+                            try {
                                 String msg;
-                                String isOk;
+                                long time;
 
-                                // loop for message passing
-                                do {
-                                    System.out.println(dis.readUTF());
-                                    msg = scn.nextLine();
-
-                                    // sending the message to server
-                                    dos.writeUTF(msg);
-
-                                    // display error message if not OK
-                                    if (!(isOk = dis.readUTF()).equals("OK"))
-                                        System.out.println(isOk);
-                                } while(!isOk.equals("OK"));
-
-                                // close the connection on exit command and break the loop
-                                if (msg.equalsIgnoreCase("Exit")) {
-                                    System.out.println("Connection closed");
-                                    break;
-                                }
-
-                                // time passing
-                                System.out.println(dis.readUTF());
+                                currentMsg = "Type your message: ";
+                                System.out.println(currentMsg);
                                 msg = scn.nextLine();
 
-                                // sending time to server
-                                dos.writeUTF(msg);
-
-                                // display error message if not OK
-                                if (!(isOk = dis.readUTF()).equals("OK")) {
-                                    System.out.println(isOk);
-                                    continue;
+                                // if msg not valid
+                                if (msg.isEmpty()) {
+                                    throw new MessageNotValidException();
                                 }
 
-                                // getting the data from the server
-                                String reply = dis.readUTF();
-                                System.out.println("Server sends a new notification: " + reply);
+                                currentMsg = "Type time: ";
+                                System.out.println(currentMsg);
+                                time = scn.nextLong();
+
+                                try {
+                                    if (time < 0) {
+                                        // throw an exception if time of not a valid format
+                                        throw new TimeNotValidException();
+                                    }
+                                } catch (NumberFormatException e) {
+                                    // throw an exception if time of not a valid format (time not Integer type)
+                                    throw new TimeNotValidException();
+                                }
+
+                                // sending msg to server
+                                dos.writeUTF(msg);
+                                dos.writeLong(time);
+                            } catch(MessageNotValidException | TimeNotValidException e) {
+                                System.out.println("Error: " + e.getLocalizedMessage());
                             }
                         }
                     }
+                } catch (ConnectException e) {
+                    System.out.println("An error occurred: " + e.getLocalizedMessage());
+                    System.out.println("Is there a server running?");
+                } catch (SocketException e) {
+                    System.out.println("An error occurred: " + e.getLocalizedMessage());
+                    System.out.println("Is there a server running yet?");
+                } finally {
+                    scn.close();
                 }
-            } catch (ConnectException e) {
-                System.out.println("An error occurred: " + e.getLocalizedMessage());
-                System.out.println("Is there a server running?");
             }
-            catch (SocketException e) {
-                System.out.println("An error occurred: " + e.getLocalizedMessage());
-                System.out.println("Is there a server running yet?");
-            }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             System.out.println("An error occurred: " + e.getLocalizedMessage());
         }
     }
