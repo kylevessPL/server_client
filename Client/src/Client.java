@@ -5,10 +5,7 @@ import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.Scanner;
-import java.util.concurrent.TimeUnit;
 
 class MessageNotValidException extends Exception {
     public MessageNotValidException() {
@@ -27,7 +24,7 @@ public class Client {
     static final int PORT_NUMBER = 59090;
     static String currentMsg = null;
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) {
         try {
             // getting localhost ip
             InetAddress ip = InetAddress.getByName("localhost");
